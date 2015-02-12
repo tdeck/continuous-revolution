@@ -1,9 +1,8 @@
 from flask import Flask, render_template
 from werkzeug.contrib.cache import MemcachedCache
-#from logging.handlers import FileHandler
-#from logging import Formatter
 from rodong import RodongSinmun
 from dissoc import Dissoc
+from time import time
 
 CACHE_LIFETIME_S = 21600 # Six hours
 MIN_LENGTH_TO_AVG_RATIO = 0.5
@@ -11,15 +10,6 @@ MIN_LENGTH_TO_AVG_RATIO = 0.5
 app = Flask('continuous-revolution')
 cache = MemcachedCache(['127.0.0.1:11211'], key_prefix='crev::')
 scraper = RodongSinmun()
-
-'''
-app.logger = FileHandler('crev.log')
-app.logger.setFormatter(Formatter(
-    '%(asctime)s %(levelname)s: %(message)s '
-    '[in %(pathname)s:%(lineno)d]'
-))
-'''
-app.debug = True
 
 SECTIONS = {
     'editorial': 'Editorial'
@@ -36,16 +26,15 @@ def test():
 def update_corpus():
     """ Updates the corpus if it has expired. """
     for section_key in SECTIONS.keys():
-        cache_key = 'corpora/' + section_key
-
-        corpus = cache.get(cache_key)
-        if corpus is None:
-            print "Reloading corpus for key {0}".format(key)
+        expiry_key = 'expiry/' + section_key
+        expiry = cache.get(expiry_key)
+        if expiry < time():
+            print "Rebuilding corpus for key '{0}'".format(section_key)
             cache.set(
-                cache_key,
-                [article.text for article in scraper[section_key]],
-                timeout=CACHE_LIFETIME_S
+                'corpora/' + section_key,
+                [article.text for article in scraper[section_key]]
             )
+            cache.set(expiry_key, int(time() + CACHE_LIFETIME_S))
 
     return 'Ok.'
 
@@ -56,7 +45,7 @@ def generate_text(section_key):
     min_length = MIN_LENGTH_TO_AVG_RATIO * avg_article_length
 
     dissoc = Dissoc(n=3)
-    dissoc.train(cache.get('corpora/' + section_key))
+    dissoc.train([a.replace(u'\xa0', ' ') for a in corpus])
 
     result = ''
     while len(result) < min_length:

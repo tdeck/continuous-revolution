@@ -60,4 +60,4 @@ class Dissoc(object):
             re.sub(r" (\W)", r'\1', 
                 ' '.join(message_tokens[:-1])
             )
-        )
+        ).strip()
