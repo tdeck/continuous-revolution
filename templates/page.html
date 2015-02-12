@@ -1,0 +1,14 @@
+<!doctype html>
+<html>
+    <head>
+        <title>연속혁명! - Continuous Revolution!</title>
+        <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='style.css') }}">
+    </head>
+    <body>
+        <h1>연속혁명</h1>
+        <h2>Let us hasten to victory for the revolutionary idea!</h2>
+        <div class="content">
+            {{ text|e|replace("\n", '<p>'|safe) }}
+        </div>
+    </body>
+</html>

@@ -1,0 +1,33 @@
+body {
+    font-family: serif;
+    color: #222;
+}
+
+h1 {
+    color: #D10A0E;
+    font-weight: bold;
+    text-align: center;
+    font-size: 48pt;
+    margin-bottom: 4pt;
+}
+
+h2 {
+    font-weight: 500;
+    text-align: center;
+    font-size: 12pt;
+    color: #444;
+}
+
+div.content {
+    margin-top: 32px;
+    margin-left: auto;
+    margin-right: auto;
+    padding: 16px 2% 16px 2%;
+    max-width: 800px;
+    min-width: 320px;
+    font-size: 13pt;
+    border-width: 1px;
+    border-style: solid;
+    color: #333;
+    border-color: #bbb;
+}
