@@ -3,13 +3,27 @@ from werkzeug.contrib.cache import MemcachedCache
 from rodong import RodongSinmun
 from dissoc import Dissoc
 from time import time
+import logging
+import os
 
 CACHE_LIFETIME_S = 21600 # Six hours
 MIN_LENGTH_TO_AVG_RATIO = 0.5
 
 app = Flask('continuous-revolution')
-cache = MemcachedCache(['127.0.0.1:11211'], key_prefix='crev::')
-scraper = RodongSinmun()
+
+# Set up logging before anything else
+handler = logging.StreamHandler()
+app.logger.addHandler(handler)
+app.logger.setLevel(logging.INFO)
+handler.setFormatter(
+    logging.Formatter('%(asctime)s %(levelname)s: %(message)s')
+)
+
+# Connect to memcached
+app.cache = MemcachedCache(
+    [os.environ['MEMCACHE_PORT'].lstrip('tcp://')],
+    key_prefix='crev::'
+)
 
 SECTIONS = {
     'editorial': 'Editorial'
@@ -22,24 +36,25 @@ def test():
         text=generate_text('editorial')
     )
 
-@app.route('/_update')
 def update_corpus():
     """ Updates the corpus if it has expired. """
+    scraper = RodongSinmun()
+
     for section_key in SECTIONS.keys():
         expiry_key = 'expiry/' + section_key
-        expiry = cache.get(expiry_key)
+        expiry = app.cache.get(expiry_key)
         if expiry < time():
-            print "Rebuilding corpus for key '{0}'".format(section_key)
-            cache.set(
+            app.logger.info("Rebuilding corpus for key '{0}'".format(section_key))
+            app.cache.set(
                 'corpora/' + section_key,
                 [article.text for article in scraper[section_key]]
             )
-            cache.set(expiry_key, int(time() + CACHE_LIFETIME_S))
+            app.cache.set(expiry_key, int(time() + CACHE_LIFETIME_S))
 
-    return 'Ok.'
+    app.logger.info('Corpus updated.')
 
 def generate_text(section_key):
-    corpus = cache.get('corpora/' + section_key)
+    corpus = app.cache.get('corpora/' + section_key)
     article_lengths = [len(a) for a in corpus]
     avg_article_length = sum(article_lengths) / len(article_lengths)
     min_length = MIN_LENGTH_TO_AVG_RATIO * avg_article_length
@@ -53,6 +68,8 @@ def generate_text(section_key):
 
     return result
 
+# Build our corpus before anything runs
+update_corpus()
+
 if __name__ == '__main__':
-    update_corpus()
     app.run()
