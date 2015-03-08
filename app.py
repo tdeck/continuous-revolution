@@ -6,7 +6,7 @@ from time import time
 import logging
 import os
 
-CACHE_LIFETIME_S = 21600 # Six hours
+CACHE_LIFETIME_S = 604800 # One week
 MIN_LENGTH_TO_AVG_RATIO = 0.5
 
 app = Flask('continuous-revolution')
@@ -23,7 +23,7 @@ handler.setFormatter(
 app.cache = MemcachedCache(
     [os.environ['MEMCACHE_PORT'].lstrip('tcp://')],
     key_prefix='crev::',
-    default_timeout=604800 # One week
+    default_timeout=CACHE_LIFETIME_S
 )
 
 SECTIONS = {
@@ -52,6 +52,7 @@ def update_corpus():
             app.logger.info('Corpus updated.')
 
 def generate_text(section_key):
+    """ Grab the corpus and use it to produce some nonsense. """
     corpus = app.cache.get('corpora/' + section_key)
     article_lengths = [len(a) for a in corpus]
     avg_article_length = sum(article_lengths) / len(article_lengths)
@@ -65,9 +66,6 @@ def generate_text(section_key):
         result += dissoc.produce() + "\n"
 
     return result
-
-# Build our corpus before anything runs
-update_corpus()
 
 if __name__ == '__main__':
     app.run()
