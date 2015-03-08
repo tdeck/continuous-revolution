@@ -22,7 +22,8 @@ handler.setFormatter(
 # Connect to memcached
 app.cache = MemcachedCache(
     [os.environ['MEMCACHE_PORT'].lstrip('tcp://')],
-    key_prefix='crev::'
+    key_prefix='crev::',
+    default_timeout=604800 # One week
 )
 
 SECTIONS = {
@@ -31,6 +32,7 @@ SECTIONS = {
 
 @app.route('/')
 def test():
+    update_corpus()
     return render_template(
         'page.html',
         text=generate_text('editorial')
@@ -41,17 +43,13 @@ def update_corpus():
     scraper = RodongSinmun()
 
     for section_key in SECTIONS.keys():
-        expiry_key = 'expiry/' + section_key
-        expiry = app.cache.get(expiry_key)
-        if expiry < time():
+        if app.cache.get('corpora/' + section_key) is None:
             app.logger.info("Rebuilding corpus for key '{0}'".format(section_key))
             app.cache.set(
                 'corpora/' + section_key,
                 [article.text for article in scraper[section_key]]
             )
-            app.cache.set(expiry_key, int(time() + CACHE_LIFETIME_S))
-
-    app.logger.info('Corpus updated.')
+            app.logger.info('Corpus updated.')
 
 def generate_text(section_key):
     corpus = app.cache.get('corpora/' + section_key)
